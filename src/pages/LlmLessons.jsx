@@ -491,6 +491,194 @@ between concepts, not just word co-occurrence.`}
   )
 }
 
+}
+
+// ═══════════════════════════════════════════════
+//  LESSON 4 — TEMPERATURE & SAMPLING
+// ═══════════════════════════════════════════════
+
+function TemperatureSampling() {
+  const [temperature, setTemperature] = useState(0.7)
+  const [prompt] = useState('The sky is')
+  const [outputs, setOutputs] = useState([])
+  const [animating, setAnimating] = useState(false)
+  const stageRef = useRef(null)
+
+  const baseProbs = [
+    { token: 'blue', prob: 0.45 },
+    { token: 'clear', prob: 0.18 },
+    { token: 'overcast', prob: 0.12 },
+    { token: 'dark', prob: 0.08 },
+    { token: 'beautiful', prob: 0.06 },
+    { token: 'gray', prob: 0.04 },
+    { token: 'endless', prob: 0.03 },
+    { token: 'falling', prob: 0.02 },
+    { token: 'a metaphor', prob: 0.01 },
+    { token: 'on fire', prob: 0.01 },
+  ]
+
+  const getTempProbs = (temp) => {
+    if (temp === 0) {
+      const maxProb = Math.max(...baseProbs.map((p) => p.prob))
+      return baseProbs.map((p) => ({ ...p, displayProb: p.prob === maxProb ? 1 : 0 }))
+    }
+    const logits = baseProbs.map((p) => Math.log(p.prob) / temp)
+    const maxLogit = Math.max(...logits)
+    const exps = logits.map((l) => Math.exp(l - maxLogit))
+    const sum = exps.reduce((a, b) => a + b, 0)
+    return baseProbs.map((p, i) => ({ ...p, displayProb: exps[i] / sum }))
+  }
+
+  const sampledProbs = getTempProbs(temperature)
+
+  const generate = () => {
+    setAnimating(true)
+    const rand = Math.random()
+    let cumulative = 0
+    let selected = sampledProbs[0].token
+    for (const p of sampledProbs) {
+      cumulative += p.displayProb
+      if (rand <= cumulative) {
+        selected = p.token
+        break
+      }
+    }
+
+    const continuations = {
+      blue: [' and peaceful.', ' today.', ' as expected.', '.'],
+      clear: ' with sunshine.',
+      overcast: ' and gloomy.',
+      dark: ' and stormy.',
+      beautiful: ' and full of wonder.',
+      gray: ' like November.',
+      endless: ' expanse above.',
+      falling: ' around us.',
+      'a metaphor': ' for hope.',
+      'on fire': ' — literally.',
+    }
+
+    const ending = typeof continuations[selected] === 'string'
+      ? continuations[selected]
+      : continuations[selected][Math.floor(Math.random() * continuations[selected].length)]
+
+    setTimeout(() => {
+      setOutputs((prev) => [{ text: `${prompt} ${selected}${ending}`, temp: temperature }, ...prev].slice(0, 6))
+      setAnimating(false)
+    }, 400)
+  }
+
+  const run = () => {
+    setTemperature(0.7)
+    setOutputs([])
+  }
+
+  return (
+    <LessonCard
+      number="4"
+      title="Temperature & Sampling"
+      description="Temperature controls creativity. Low = focused and predictable. High = wild and surprising."
+      code={{
+        lines: `# Temperature scales the probability distribution
+
+# Before temperature:
+"blue"      → 45%
+"clear"     → 18%
+"overcast"  → 12%
+
+# Low temp (0.2) — sharpens distribution
+"blue"      → 95%  ← almost always picks this
+"clear"     → 4%
+"overcast"  → 1%
+
+# High temp (1.5) — flattens distribution
+"blue"      → 26%  ← more variety
+"clear"     → 18%
+"overcast"  → 14%
+"on fire"   → 8%   ← unlikely tokens get a chance!`,
+      }}
+      html={`Temperature controls randomness:
+
+T = 0.0  → Always pick the most likely token
+           (deterministic, focused, safe)
+
+T = 0.7  → Balanced (default for ChatGPT)
+           (creative but coherent)
+
+T = 1.0  → Maximum natural randomness
+           (interesting outputs)
+
+T = 2.0  → Wild and unpredictable
+           (nonsense or brilliance)`}
+      breakdown={[
+        { key: 'Low T (0.1–0.3)', desc: 'Deterministic — good for code, facts' },
+        { key: 'Medium T (0.5–0.8)', desc: 'Balanced — good for chat, writing' },
+        { key: 'High T (1.0–2.0)', desc: 'Creative — good for brainstorming, poetry' },
+        { key: 'Sampling', desc: 'Picking tokens probabilistically, not greedily' },
+      ]}
+      replay={run}
+    >
+      <div className="demo-stage" style={{ flexDirection: 'column', gap: '1rem', alignItems: 'flex-start', width: '100%' }}>
+        <div className="temp-control">
+          <label className="temp-label">
+            Temperature: <span className="temp-value" style={{ color: temperature < 0.4 ? '#10b981' : temperature < 0.9 ? '#f59e0b' : '#e94560' }}>{temperature.toFixed(1)}</span>
+          </label>
+          <input
+            type="range"
+            min="0.1"
+            max="2.0"
+            step="0.1"
+            value={temperature}
+            onChange={(e) => setTemperature(parseFloat(e.target.value))}
+            className="temp-slider"
+          />
+          <div className="temp-labels">
+            <span>🎯 Focused</span>
+            <span>⚖️ Balanced</span>
+            <span>🎲 Creative</span>
+          </div>
+        </div>
+
+        <div ref={stageRef} className="prob-distribution">
+          {sampledProbs.map((p, i) => (
+            <div key={i} className="prob-row">
+              <span className="prob-token">{p.token}</span>
+              <div className="prob-bar-bg">
+                <div
+                  className="prob-bar-fill"
+                  style={{
+                    width: `${p.displayProb * 100}%`,
+                    background: `hsl(${i * 36}, 70%, 55%)`,
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+              <span className="prob-value">{(p.displayProb * 100).toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
+
+        <button className={`generate-btn ${animating ? 'generating' : ''}`} onClick={generate} disabled={animating}>
+          {animating ? '⏳ Generating...' : '✨ Generate'}
+        </button>
+
+        {outputs.length > 0 && (
+          <div className="generated-outputs">
+            <h4 style={{ marginBottom: '0.5rem', color: '#a89cc8', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Previous Outputs</h4>
+            {outputs.map((o, i) => (
+              <div key={i} className={`output-line ${i === 0 ? 'latest' : ''}`}>
+                <span className="output-temp" style={{ background: o.temp < 0.4 ? '#10b98133' : o.temp < 0.9 ? '#f59e0b33' : '#e9456033' }}>
+                  T={o.temp.toFixed(1)}
+                </span>
+                <span className="output-text">{o.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </LessonCard>
+  )
+}
+
 // ═══════════════════════════════════════════════
 //  PAGE
 // ═══════════════════════════════════════════════
@@ -519,6 +707,11 @@ function LlmLessons() {
       <section className="lessons-section">
         <h2>How LLMs Understand Text</h2>
         <EmbeddingsDemo />
+      </section>
+
+      <section className="lessons-section">
+        <h2>Controlling LLM Output</h2>
+        <TemperatureSampling />
       </section>
 
       <footer className="lessons-footer">
