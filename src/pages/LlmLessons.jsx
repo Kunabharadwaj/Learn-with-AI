@@ -678,6 +678,232 @@ T = 2.0  → Wild and unpredictable
 }
 
 // ═══════════════════════════════════════════════
+//  LESSON 5 — ATTENTION MECHANISM
+// ═══════════════════════════════════════════════
+
+const SAMPLE_SENTENCES = [
+  ['The', 'cat', 'sat', 'on', 'the', 'mat'],
+  ['The', 'bank', 'of', 'the', 'river'],
+  ['She', 'loves', 'coding', 'in', 'CSS'],
+  ['AI', 'will', 'change', 'the', 'world'],
+]
+
+const ATTENTION_MAPS = {
+  'The cat sat on the mat': {
+    0: [0.5, 0.1, 0.05, 0.05, 0.25, 0.05],
+    1: [0.15, 0.1, 0.5, 0.05, 0.1, 0.1],
+    2: [0.1, 0.45, 0.15, 0.15, 0.05, 0.1],
+    3: [0.05, 0.05, 0.15, 0.25, 0.05, 0.45],
+    4: [0.25, 0.1, 0.05, 0.1, 0.45, 0.05],
+    5: [0.05, 0.1, 0.15, 0.45, 0.1, 0.15],
+  },
+  'The bank of the river': {
+    0: [0.5, 0.2, 0.05, 0.2, 0.05],
+    1: [0.05, 0.05, 0.05, 0.05, 0.8],
+    2: [0.1, 0.2, 0.25, 0.2, 0.25],
+    3: [0.2, 0.3, 0.2, 0.15, 0.15],
+    4: [0.05, 0.8, 0.05, 0.05, 0.05],
+  },
+  'She loves coding in CSS': {
+    0: [0.5, 0.35, 0.1, 0.03, 0.02],
+    1: [0.4, 0.15, 0.35, 0.05, 0.05],
+    2: [0.1, 0.3, 0.15, 0.05, 0.4],
+    3: [0.05, 0.1, 0.05, 0.1, 0.7],
+    4: [0.02, 0.03, 0.4, 0.35, 0.2],
+  },
+  'AI will change the world': {
+    0: [0.4, 0.1, 0.4, 0.05, 0.05],
+    1: [0.1, 0.15, 0.35, 0.1, 0.3],
+    2: [0.35, 0.1, 0.1, 0.05, 0.4],
+    3: [0.2, 0.2, 0.15, 0.1, 0.35],
+    4: [0.05, 0.25, 0.45, 0.1, 0.15],
+  },
+}
+
+function AttentionMechanism() {
+  const [sentenceIdx, setSentenceIdx] = useState(0)
+  const [selectedWord, setSelectedWord] = useState(null)
+  const [revealPhase, setRevealPhase] = useState(0)
+  const stageRef = useRef(null)
+
+  const sentence = SAMPLE_SENTENCES[sentenceIdx]
+  const sentenceKey = sentence.join(' ')
+  const attnMatrix = ATTENTION_MAPS[sentenceKey]
+
+  const selectWord = (wordIdx) => {
+    setSelectedWord(wordIdx)
+    setRevealPhase(0)
+    let phase = 0
+    const interval = setInterval(() => {
+      phase++
+      setRevealPhase(phase)
+      if (phase >= sentence.length) clearInterval(interval)
+    }, 120)
+  }
+
+  const run = () => {
+    setSentenceIdx(0)
+    setSelectedWord(null)
+    setRevealPhase(0)
+  }
+
+  return (
+    <LessonCard
+      number="5"
+      title="Attention Mechanism"
+      description="Every word looks at every other word to understand context. This is the core innovation of Transformers."
+      code={{
+        lines: `# Self-Attention: every token sees the full sentence
+
+Input: ["The", "cat", "sat", "on", "the", "mat"]
+
+# Attention scores for 'cat':
+"The" → 0.15    # context: subject
+"cat" → 0.10    # self
+"sat" → 0.50    # ← strongest! (action)
+"on"  → 0.05
+"the" → 0.10
+"mat" → 0.10    # location
+
+# Output: cat is now enriched with cat + sat context
+# That's how 'cat sat' and 'cat ran' get different representations`,
+      }}
+      html={`Before Attention:
+  Each word processed independently.
+  'bank' always had the same vector.
+
+With Self-Attention:
+  Every word looks at every other word.
+  'bank' in 'bank of river' → attends to river
+  'bank' in 'bank account' → attends to money
+
+This is the 'Attention is All You Need' idea
+that replaced RNNs/LSTMs entirely.`}
+      breakdown={[
+        { key: 'Query, Key, Value', desc: 'Each word generates three vectors' },
+        { key: 'Attention weights', desc: 'Scores between every word pair (0-1)' },
+        { key: 'Disambiguation', desc: '"bank" resolves to river vs money via context' },
+        { key: 'Parallel', desc: 'All words attend simultaneously — no sequential loop' },
+      ]}
+      replay={run}
+    >
+      <div className="demo-stage" style={{ flexDirection: 'column', gap: '1rem', alignItems: 'flex-start', width: '100%' }}>
+        <p style={{ fontSize: '0.85rem', color: '#cfc0e8', marginBottom: '0.25rem', textAlign: 'center', width: '100%' }}>
+          Click a word to see its attention weights
+        </p>
+
+        {/* Sentence selector */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+          {SAMPLE_SENTENCES.map((s, i) => (
+            <button
+              key={i}
+              className="generate-btn"
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: sentenceIdx === i ? 'linear-gradient(135deg, #8b5cf6, #e94560)' : 'rgba(255,255,255,0.1)' }}
+              onClick={() => { setSentenceIdx(i); setSelectedWord(null); setRevealPhase(0) }}
+            >
+              &quot;{s.join(' ')}&quot;
+            </button>
+          ))}
+        </div>
+
+        {/* Word tokens */}
+        <div ref={stageRef} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%', padding: '1rem 0' }}>
+          {sentence.map((word, wordIdx) => (
+            <span
+              key={wordIdx}
+              onClick={() => selectWord(wordIdx)}
+              style={{
+                padding: '0.5rem 0.8rem',
+                background: selectedWord === wordIdx ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.05)',
+                border: `2px solid ${selectedWord === wordIdx ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.9rem',
+                color: '#e0d5f5',
+                transition: 'all 0.3s',
+              }}
+            >
+              {word}
+            </span>
+          ))}
+        </div>
+
+        {/* Attention weights visualization */}
+        {selectedWord !== null && attnMatrix && (
+          <div style={{ width: '100%', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '1rem', border: '1px solid #2a2a3d' }}>
+            <h4 style={{ marginBottom: '0.75rem', color: '#cfc0e8', fontSize: '0.85rem' }}>
+              &quot;{sentence[selectedWord]}&quot; attends to:
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {sentence.map((word, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  opacity: i < revealPhase ? 1 : 0.2,
+                  transition: 'opacity 0.3s',
+                }}>
+                  <span style={{
+                    minWidth: '80px',
+                    textAlign: 'right',
+                    fontFamily: 'Cascadia Code, monospace',
+                    fontSize: '0.8rem',
+                    color: '#e0d5f5',
+                    fontWeight: '600',
+                  }}>{word}</span>
+                  <div style={{
+                    flex: 1,
+                    height: '20px',
+                    background: 'rgba(255,255,255,0.05)',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      width: `${attnMatrix[selectedWord][i] * 100}%`,
+                      height: '100%',
+                      background: i === selectedWord
+                        ? 'linear-gradient(90deg, #8b5cf6, #6d28d9)'
+                        : `hsl(${(i * 50 + selectedWord * 30) % 360}, 70%, 55%)`,
+                      transition: 'width 0.3s ease',
+                      borderRadius: '4px',
+                    }} />
+                  </div>
+                  <span style={{
+                    minWidth: '40px',
+                    fontFamily: 'Cascadia Code, monospace',
+                    fontSize: '0.75rem',
+                    color: '#a89cc8',
+                  }}>{attnMatrix[selectedWord][i].toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Disambiguation callout */}
+            {sentenceKey === 'The bank of the river' && selectedWord === 1 && revealPhase >= sentence.length && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                background: 'rgba(16,185,129,0.1)',
+                border: '1px solid rgba(16,185,129,0.3)',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                color: '#a8f0d0',
+              }}>
+                <strong>💡 Disambiguation in action:</strong>
+                <br />&quot;bank&quot; has its strongest weight with &quot;river&quot; (0.80),
+                so the model knows it means riverbank — not financial bank.
+                <br />Same word, different context, different meaning.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </LessonCard>
+  )
+}
+
+// ═══════════════════════════════════════════════
 //  PAGE
 // ═══════════════════════════════════════════════
 
@@ -710,6 +936,11 @@ function LlmLessons() {
       <section className="lessons-section">
         <h2>Controlling LLM Output</h2>
         <TemperatureSampling />
+      </section>
+
+      <section className="lessons-section">
+        <h2>Inside the Transformer</h2>
+        <AttentionMechanism />
       </section>
 
       <footer className="lessons-footer">
