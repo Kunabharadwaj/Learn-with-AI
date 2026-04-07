@@ -225,6 +225,16 @@ body {
 
 .lesson:hover { border-color: var(--border-hi); }
 
+.lesson-card {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.lesson-content {
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .lesson-header {
   display: flex;
   align-items: flex-start;
@@ -285,14 +295,15 @@ body {
   flex-wrap: wrap;
   gap: 1rem;
   padding: 1.25rem;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .lesson-code-area,
 .lesson-demo-area {
-  flex: 1 1 300px;
+  flex: 1 1 0;
   min-width: 0;
   overflow-x: auto;
+  border-radius: var(--radius-sm);
 }
 
 .lesson-code-label,
@@ -325,6 +336,7 @@ body {
   overflow-x: auto;
   white-space: pre;
   border: 1px solid var(--border);
+  max-width: 100%;
 }
 
 .breakdown { list-style: none; margin-top: 0.5rem; }
