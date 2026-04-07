@@ -219,21 +219,11 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   margin-bottom: 1.5rem;
-  overflow: hidden;
+  overflow: visible;
   transition: border-color 0.25s;
 }
 
 .lesson:hover { border-color: var(--border-hi); }
-
-.lesson-card {
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.lesson-content {
-  max-width: 100%;
-  overflow: hidden;
-}
 
 .lesson-header {
   display: flex;
@@ -295,7 +285,7 @@ body {
   flex-wrap: wrap;
   gap: 1rem;
   padding: 1.25rem;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .lesson-code-area,
